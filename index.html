@@ -2471,48 +2471,7 @@ document.getElementById('profile-ai-suggest')?.addEventListener('click', async (
 });
 
 // ============== 开发辅助：一键注入当天示例餐饮（用于测试"历史详情弹层"） ==============
-function __seedDemoMealsForToday(){
-  const buildTime = (h, m) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.getTime(); };
-  const meals = store.get('meals', []);
-  const todayKey = ymdKey(new Date());
-  const kept = meals.filter(m => ymdKey(new Date(m.time)) !== todayKey);
-  const makeEntry = (time, mealType, items) => ({
-    time,
-    mealType,
-    text: formatMealText(items),
-    items,
-    totals: calcTotals(items)
-  });
-  const breakfastItems = [
-    { name: '燕麦粥', protein: 8, carbs: 45, fat: 4, kcal: 250 },
-    { name: '鸡蛋', protein: 6.3, carbs: 0.6, fat: 5, kcal: 78 }
-  ];
-  const lunchItems = [
-    { name: '鸡胸肉', protein: 30, carbs: 0, fat: 3.5, kcal: 165 },
-    { name: '米饭', protein: 4, carbs: 70, fat: 1, kcal: 320 },
-    { name: '西兰花', protein: 3, carbs: 7, fat: 0.4, kcal: 35 }
-  ];
-  const dinnerItems = [
-    { name: '可乐', protein: 0, carbs: 39, fat: 0, kcal: 150 }
-  ];
-  kept.push(
-    makeEntry(buildTime(8, 30), 'breakfast', breakfastItems),
-    makeEntry(buildTime(12, 30), 'lunch', lunchItems),
-    makeEntry(buildTime(19, 30), 'dinner', dinnerItems)
-  );
-  store.set('meals', kept);
-  paintMeals();
-  updateStats();
-  showToast('已注入当天示例数据（早餐/午餐/晚餐）');
-}
-(function(){
-  try{
-    const sp = new URLSearchParams(location.search);
-    if (sp.has('seed') || (location.hash && location.hash.includes('seed'))) {
-      __seedDemoMealsForToday();
-    }
-  }catch{}
-})();
+// 示例餐注入工具（已禁用）
     </script>
   </body>
 </html>
