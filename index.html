@@ -408,7 +408,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
               <button id="open-vip" class="px-4 py-2 bg-primary text-white rounded-xl text-sm">去开通 <i class="fa-solid fa-chevron-right ml-1 text-xs"></i></button>
             </div>
             <div class="text-neutral-700 dark:text-neutral-300 font-medium mb-0.5 leading-snug">试用中</div>
-            <div class="text-neutral-500 dark:text-neutral-400 text-sm leading-snug">到期日期：2023-12-31</div>
+            <div class="text-neutral-500 dark:text-neutral-400 text-sm leading-snug">到期日期：2025-12-31</div>
             <div class="mt-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-700 text-sm text-neutral-600 dark:text-neutral-300 leading-snug"><i class="fa-solid fa-info-circle mr-2 text-primary"></i>高级会员可享受专业饮食分析、AI营养评估与指导等特权</div>
           </section>
           <!-- 绑定教练 -->
@@ -663,6 +663,21 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
     </div>
 
     <script>
+      // iOS PWA：从后台回到前台时，若聚焦在输入框，系统可能弹出“撤销/取消”（Shake to Undo）。
+      // 规避：前台时主动取消输入焦点，清空选择，避免触发系统撤销弹框。
+      (function mitigateIOSUndo(){
+        const blurActive = ()=>{
+          const el = document.activeElement;
+          if(el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA')){
+            try{ el.blur(); }catch{}
+          }
+        };
+        document.addEventListener('visibilitychange', ()=>{
+          if(document.visibilityState==='visible') blurActive();
+        });
+        window.addEventListener('pageshow', blurActive);
+        window.addEventListener('focus', blurActive);
+      })();
       // 轻存储助手
       // === 数据模型 ===
 // MealItem: { name, grams, protein, carbs, fat, kcal }
