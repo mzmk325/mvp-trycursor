@@ -585,7 +585,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
 
     <!-- 历史餐详情弹层（用于查看/修改某餐） -->
     <div id="hist-meal-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-end sm:items-center justify-center">
-      <div class="bg-white dark:bg-neutral-800 w-full sm:w-[540px] rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto">
+      <div class="bg-white dark:bg-neutral-800 w-full sm:w-[540px] rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto relative">
         <div class="flex justify-between items-center p-5 border-b border-neutral-200 dark:border-neutral-700">
           <div class="text-lg font-semibold" id="hm-title">餐次详情</div>
           <button id="hm-close" class="p-2 text-neutral-500 dark:text-neutral-400"><i class="fa-solid fa-xmark"></i></button>
@@ -612,6 +612,10 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
             <button id="hm-delete" class="flex-1 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 text-sm">删除本餐</button>
             <button id="hm-save"   class="flex-1 py-3 rounded-xl bg-primary text-white text-sm">让 AI 生成新的一餐</button>
           </div>
+        </div>
+        <!-- 加载遮罩 -->
+        <div id="hm-loading" class="hidden absolute inset-0 bg-black/30 flex items-center justify-center">
+          <div class="px-4 py-2 rounded-full bg-neutral-800 text-white text-sm">AI 生成中…</div>
         </div>
       </div>
     </div>
@@ -1752,6 +1756,11 @@ meals[idx].totals = totals;
       loadGoalsForToday();
       syncGoalLabels();
       paintMeals();
+      // 刷新历史页当日详情 & 关闭历史弹层，给出反馈
+      try { renderDailyDetails(selectedDate); } catch{}
+      const hm = document.getElementById('hist-meal-modal');
+      if (hm) hm.classList.add('hidden');
+      showToast('已替换该餐');
     }
     editingOldMealKey = null;
     tempAiItemsForEdit = null;
@@ -1769,6 +1778,7 @@ const entry = {
     store.set('meals', meals);
     paintMeals();
     updateStats();
+    showToast('已添加到今天');
   }
 
   // 最后再关闭弹层并清理会话
@@ -2016,6 +2026,8 @@ if(hmClose) hmClose.onclick = ()=> hmModal.classList.add('hidden');
 
 const __saveBtn = document.getElementById('hm-save');
 if (__saveBtn) __saveBtn.onclick = async () => {
+  const loading = document.getElementById('hm-loading');
+  if (loading) loading.classList.remove('hidden');
   const all = store.get('meals', []);
   const m = all.find(x => x.time === hmEditingKey);
   if (!m) return;
@@ -2029,12 +2041,14 @@ if (__saveBtn) __saveBtn.onclick = async () => {
     ret = await callAI({ text: aiInput, image: null, mode:'text' });
   } catch (e) {
     showToast('AI 生成失败：' + (e?.message || '请稍后重试'));
+    if (loading) loading.classList.add('hidden');
     return;
   }
 
   const items = Array.isArray(ret?.items) ? ret.items : [];
   if (items.length === 0) {
     showToast('AI 未生成有效条目，请调整修正说明再试。');
+    if (loading) loading.classList.add('hidden');
     return;
   }
 
@@ -2046,6 +2060,8 @@ renderAiResult(json);
 
   // 打开 ai-modal 让你确认
   document.getElementById('ai-modal').classList.remove('hidden');
+  showToast('已生成新的一餐，请确认应用');
+  if (loading) loading.classList.add('hidden');
 };
 
 const hDelBtn = document.getElementById('hm-delete');
