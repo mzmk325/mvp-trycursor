@@ -2202,10 +2202,13 @@ function renderDailyDetails(date){
     </div>
   `;
 
-  // 点击任意一餐 -> 打开弹层
-  list.querySelectorAll('[data-open]').forEach(btn=>{
-    btn.onclick = () => openHistMealModal(+btn.getAttribute('data-open'));
-  });
+  // 点击任意一餐 -> 打开弹层（事件委托，避免重复绑定）
+  list.onclick = (ev)=>{
+    const target = ev.target.closest('[data-open]');
+    if(!target) return;
+    const key = +target.getAttribute('data-open');
+    openHistMealModal(key);
+  };
 }
 
 // 周/月图表：周=7根；月=当月1号到月末的天数根；选中日放第一根并高亮
