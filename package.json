@@ -1,0 +1,19 @@
+{
+  "name": "nutrition-tracker",
+  "version": "1.0.0",
+  "description": "营养追踪应用",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step required'",
+    "deploy": "netlify deploy",
+    "deploy:prod": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {},
+  "keywords": ["nutrition", "health", "tracker"],
+  "author": "",
+  "license": "MIT"
+}
