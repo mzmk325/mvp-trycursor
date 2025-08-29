@@ -393,10 +393,10 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
   <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs">更换</div>
   <input id="avatar-upload" type="file" accept="image/*" class="hidden" />
 </label>
-                <div>
-                  <div class="text-xl font-semibold" id="profile-name">健康饮食者</div>
-                  <div class="text-neutral-500 dark:text-neutral-400 text-sm" id="profile-basic">男 32岁</div>
-                  <div class="text-neutral-500 dark:text-neutral-400 text-sm" id="profile-body">175cm / 70kg</div>
+                <div class="leading-tight">
+                  <div class="text-xl font-semibold tracking-tight" id="profile-name">健康饮食者</div>
+                  <div class="text-neutral-500 dark:text-neutral-400 text-sm mt-0.5" id="profile-basic">男 32岁</div>
+                  <div class="text-neutral-500 dark:text-neutral-400 text-sm mt-0.5" id="profile-body">175cm / 70kg</div>
                 </div>
               </div>
               <button id="profile-edit" class="px-4 py-2 rounded-xl border border-neutral-300 dark:border-neutral-600 text-sm">编辑</button>
@@ -404,27 +404,27 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
           </section>
           <section class="bg-white dark:bg-neutral-800 rounded-xl shadow-light p-6 border border-neutral-200 dark:border-neutral-700">
             <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-semibold">会员与付费状态</h3>
+              <h3 class="text-lg font-semibold tracking-tight">会员与付费状态</h3>
               <button id="open-vip" class="px-4 py-2 bg-primary text-white rounded-xl text-sm">去开通 <i class="fa-solid fa-chevron-right ml-1 text-xs"></i></button>
             </div>
-            <div class="text-neutral-700 dark:text-neutral-300 font-medium mb-1">试用中</div>
-            <div class="text-neutral-500 dark:text-neutral-400 text-sm">到期日期：2023-12-31</div>
-            <div class="mt-4 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-700 text-sm text-neutral-600 dark:text-neutral-300"><i class="fa-solid fa-info-circle mr-2 text-primary"></i>高级会员可享受专业饮食分析、AI营养评估与指导等特权</div>
+            <div class="text-neutral-700 dark:text-neutral-300 font-medium mb-0.5 leading-snug">试用中</div>
+            <div class="text-neutral-500 dark:text-neutral-400 text-sm leading-snug">到期日期：2023-12-31</div>
+            <div class="mt-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-700 text-sm text-neutral-600 dark:text-neutral-300 leading-snug"><i class="fa-solid fa-info-circle mr-2 text-primary"></i>高级会员可享受专业饮食分析、AI营养评估与指导等特权</div>
           </section>
           <!-- 绑定教练 -->
           <section class="bg-white dark:bg-neutral-800 rounded-xl shadow-light p-6 border border-neutral-200 dark:border-neutral-700">
             <div class="flex items-center justify-between mb-2">
-              <h3 class="text-lg font-semibold">绑定教练</h3>
+              <h3 class="text-lg font-semibold tracking-tight">绑定教练</h3>
               <button id="bind-coach" class="px-4 py-2 bg-primary text-white rounded-xl text-sm">去绑定 <i class="fa-solid fa-chevron-right ml-1 text-xs"></i></button>
             </div>
-            <div class="text-neutral-600 dark:text-neutral-300 text-sm">绑定后可获得专属教练督导与饮食训练建议</div>
+            <div class="text-neutral-600 dark:text-neutral-300 text-sm leading-snug">绑定后可获得专属教练督导与饮食训练建议</div>
           </section>
           <section class="bg-white dark:bg-neutral-800 rounded-xl shadow-light p-6 border border-neutral-200 dark:border-neutral-700">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-semibold">营养与目标</h3>
+            <div class="flex items-center justify-between mb-2.5">
+              <h3 class="text-lg font-semibold tracking-tight">营养与目标</h3>
               <button id="profile-goal-btn" class="px-4 py-2 rounded-xl border border-neutral-300 dark:border-neutral-600 text-sm">进入设置 <i class="fa-solid fa-chevron-right ml-1 text-xs"></i></button>
             </div>
-            <div class="text-neutral-600 dark:text-neutral-300 text-sm whitespace-nowrap">
+            <div class="text-neutral-600 dark:text-neutral-300 text-sm whitespace-nowrap leading-snug">
               目标：<span id="profile-goal-cal">2000</span>kcal ｜ P<span id="profile-goal-pro">100</span>g ｜ C<span id="profile-goal-carbs">0</span>g ｜ F<span id="profile-goal-fat">65</span>g
             </div>
           </section>
@@ -1920,11 +1920,11 @@ function openHistMealModal(mealKey){
   hmEditingKey = mealKey;
 
   const titleMap = {breakfast:'早餐', lunch:'午餐', dinner:'晚餐', night:'夜宵', snack:'加餐'};
-  document.getElementById('hm-title').textContent = (titleMap[m.mealType]||'餐') + '详情';
+  const hTitle = document.getElementById('hm-title'); if(hTitle) hTitle.textContent = (titleMap[m.mealType]||'餐') + '详情';
   const d = new Date(m.time);
   const two = n => n<10?'0'+n:''+n;
-  document.getElementById('hm-date').textContent = `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
-  document.getElementById('hm-note').value = m.note || '';
+  const hDate = document.getElementById('hm-date'); if(hDate) hDate.textContent = `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
+  const hNote = document.getElementById('hm-note'); if(hNote) hNote.value = m.note || '';
 
   // 渲染每个食物条目为只读行
 hmItems.innerHTML = '';
@@ -1946,7 +1946,7 @@ hmItems.innerHTML = '';
 });
 
 // 修改保存按钮文案
-document.getElementById('hm-save').textContent = '让 AI 生成新的一餐';
+const hSaveBtn = document.getElementById('hm-save'); if(hSaveBtn){ hSaveBtn.textContent = '让 AI 生成新的一餐'; }
   hmModal.classList.remove('hidden');
   hmModal.classList.add('flex');
 }
@@ -1973,15 +1973,16 @@ function recalcModalTotals(){
   document.getElementById('hm-total-fat').textContent  = sum.f.toFixed(1);
 }
 
-hmClose.onclick = ()=> hmModal.classList.add('hidden');
+if(hmClose) hmClose.onclick = ()=> hmModal.classList.add('hidden');
 
-document.getElementById('hm-save').onclick = async () => {
+const __saveBtn = document.getElementById('hm-save');
+if (__saveBtn) __saveBtn.onclick = async () => {
   const all = store.get('meals', []);
   const m = all.find(x => x.time === hmEditingKey);
   if (!m) return;
 
   // 组合给AI的输入：原始文本 + 修正说明
-  const note = (document.getElementById('hm-note').value || '').trim();
+  const note = ((document.getElementById('hm-note')||{}).value || '').trim();
   const aiInput = (m.text || '') + (note ? ('；修正说明：' + note) : '');
 
   let ret;
@@ -2008,7 +2009,8 @@ renderAiResult(json);
   document.getElementById('ai-modal').classList.remove('hidden');
 };
 
-document.getElementById('hm-delete').onclick = ()=>{
+const hDelBtn = document.getElementById('hm-delete');
+if (hDelBtn) hDelBtn.onclick = ()=>{
   const all = store.get('meals', []);
   const idx = all.findIndex(x=>x.time===hmEditingKey);
   if(idx<0) return;
@@ -2103,12 +2105,13 @@ function renderCalendar(){
   const isSel = key === ymd(selectedDate);
   const isToday = key === todayKey;
   return `
-    <button class="text-left p-3 rounded-xl border ${isSel ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-neutral-50 dark:hover:bg-neutral-700/40'} transition-colors"
+    <button class="w-full p-3 rounded-xl border ${isSel ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-neutral-50 dark:hover:bg-neutral-700/40'} transition-colors text-center"
             data-pick="${key}">
-      <div class="flex items-center gap-2">
-        <div class="text-base font-medium ${isSel?'text-primary':''}">${date.getDate()}</div>
+      <div class="text-base font-medium ${isSel?'text-primary':''}">${date.getDate()}</div>
+      <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-tight">
+        <div>${t.kcal}</div>
+        <div>kcal</div>
       </div>
-      <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400">${t.kcal} kcal</div>
     </button>
   `;
 };
@@ -2342,7 +2345,7 @@ switchTab('today');
 })();
 // 绑定教练：点击提示占位
 document.getElementById('bind-coach')?.addEventListener('click', function(){
-  alert('即将开通，敬请期待');
+  showToast('即将开通，敬请期待');
 });
 // 体脂提示浮层
 (()=>{
