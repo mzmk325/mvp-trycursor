@@ -170,7 +170,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
     </header>
 
     <!-- 主体：三个分区（今天 / 历史 / 我的） -->
-    <main class="container mx-auto px-4 py-6 pb-24 safe-bottom">
+    <main class="container mx-auto px-4 py-6 pb-2">
       <!-- 更新提示条 -->
       <div id="update-banner" class="hidden fixed left-1/2 -translate-x-1/2 bottom-[6.2rem] z-50 bg-neutral-900 text-white text-sm px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
         <span>有新版本可用</span>
@@ -508,11 +508,11 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
     </main>
 
     <!-- 底部导航栏 -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-neutral-800/80 backdrop-blur-md border-t border-neutral-200 dark:border-neutral-700 z-40" style="height:calc(4.8rem + env(safe-area-inset-bottom)); padding-bottom: max(env(safe-area-inset-bottom), 8px);">
-      <div class="grid grid-cols-3 h-[4.8rem]">
-        <button id="tab-today" class="flex flex-col items-center justify-center pt-0.5 pb-1.5 text-primary"><i class="fa-solid fa-utensils mb-1"></i><span class="text-xs">今天</span></button>
-        <button id="tab-history" class="flex flex-col items-center justify-center pt-0.5 pb-1.5 text-neutral-500 dark:text-neutral-400"><i class="fa-solid fa-history mb-1"></i><span class="text-xs">历史</span></button>
-        <button id="tab-profile" class="flex flex-col items-center justify-center pt-0.5 pb-1.5 text-neutral-500 dark:text-neutral-400"><i class="fa-solid fa-user mb-1"></i><span class="text-xs">我的</span></button>
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-md border-t border-neutral-200 dark:border-neutral-700 z-40" style="height:calc(4.2rem + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);">
+      <div class="grid grid-cols-3 h-[4.2rem]">
+        <button id="tab-today" class="flex flex-col items-center justify-center text-primary"><i class="fa-solid fa-utensils mb-0.5"></i><span class="text-[11px]">今天</span></button>
+        <button id="tab-history" class="flex flex-col items-center justify-center text-neutral-500 dark:text-neutral-400"><i class="fa-solid fa-history mb-0.5"></i><span class="text-[11px]">历史</span></button>
+        <button id="tab-profile" class="flex flex-col items-center justify-center text-neutral-500 dark:text-neutral-400"><i class="fa-solid fa-user mb-0.5"></i><span class="text-[11px]">我的</span></button>
       </div>
     </nav>
 
