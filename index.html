@@ -583,6 +583,39 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
     <!-- Toast 容器（统一提示） -->
     <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-[7.2rem] z-50 px-4 py-2 bg-black/80 text-white text-sm rounded-full hidden"></div>
 
+    <!-- 历史餐详情弹层（用于查看/修改某餐） -->
+    <div id="hist-meal-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-end sm:items-center justify-center">
+      <div class="bg-white dark:bg-neutral-800 w-full sm:w-[540px] rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto">
+        <div class="flex justify-between items-center p-5 border-b border-neutral-200 dark:border-neutral-700">
+          <div class="text-lg font-semibold" id="hm-title">餐次详情</div>
+          <button id="hm-close" class="p-2 text-neutral-500 dark:text-neutral-400"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5">
+          <div class="text-neutral-500 dark:text-neutral-400 mb-3" id="hm-date">—</div>
+          <div id="hm-items" class="space-y-3"></div>
+          <div class="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+            <div class="flex justify-between font-semibold mb-1">
+              <span>本餐总计</span>
+              <span id="hm-total-kcal">0kcal</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+              <div>蛋白质 <span id="hm-total-pro">0</span>g</div>
+              <div>碳水 <span id="hm-total-carb">0</span>g</div>
+              <div>脂肪 <span id="hm-total-fat">0</span>g</div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <label class="text-sm font-medium block mb-2">修正说明</label>
+            <textarea id="hm-note" class="w-full p-3 bg-neutral-100 dark:bg-neutral-700 rounded-xl text-sm resize-none" placeholder="如：多吃了一个鸡蛋"></textarea>
+          </div>
+          <div class="flex gap-3 mt-5">
+            <button id="hm-delete" class="flex-1 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 text-sm">删除本餐</button>
+            <button id="hm-save"   class="flex-1 py-3 rounded-xl bg-primary text-white text-sm">让 AI 生成新的一餐</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- AI 确认弹层 -->
     <div id="ai-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-end">
       <div class="bg-white dark:bg-neutral-800 w-full rounded-t-2xl max-h-[80vh] overflow-y-auto">
@@ -1947,6 +1980,12 @@ hmItems.innerHTML = '';
 
 // 修改保存按钮文案
 const hSaveBtn = document.getElementById('hm-save'); if(hSaveBtn){ hSaveBtn.textContent = '让 AI 生成新的一餐'; }
+  // 同步本餐合计
+  const totals = m.totals && isFinite(+m.totals.kcal) ? m.totals : calcTotals(m.items||[]);
+  const elK = document.getElementById('hm-total-kcal'); if (elK) elK.textContent = `${Math.max(0, Math.round(+totals.kcal||0))}kcal`;
+  const elP = document.getElementById('hm-total-pro');  if (elP) elP.textContent = (+totals.protein||0).toFixed(1);
+  const elC = document.getElementById('hm-total-carb'); if (elC) elC.textContent = (+totals.carbs||0).toFixed(1);
+  const elF = document.getElementById('hm-total-fat');  if (elF) elF.textContent = (+totals.fat||0).toFixed(1);
   hmModal.classList.remove('hidden');
   hmModal.classList.add('flex');
 }
@@ -2175,11 +2214,14 @@ function renderDailyDetails(date){
 
   // 列表
   const meals = mealsOfDate(date).sort((a,b)=>a.time-b.time);
-  list.innerHTML = meals.map(m => {
+  list.innerHTML = meals.map((m, idx) => {
     const t = m.totals || {kcal:0,protein:0,carbs:0,fat:0};
     const timeText = new Date(m.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const rowClass = idx === meals.length - 1
+      ? `w-full text-left pb-4`
+      : `w-full text-left border-b border-neutral-100 dark:border-neutral-700 pb-4`;
     return `
-      <button class="w-full text-left border-b border-neutral-100 dark:border-neutral-700 pb-4" data-open="${m.time}">
+      <button class="${rowClass}" data-open="${m.time}">
         <div class="flex justify-between items-start mb-1">
           <div class="font-medium text-sm">${MEAL_I18N[m.mealType] || '—'} <span class="ml-2 text-xs text-neutral-500">${timeText}</span></div>
           <div class="text-sm">${t.kcal}kcal</div>
@@ -2209,6 +2251,19 @@ function renderDailyDetails(date){
     const key = +target.getAttribute('data-open');
     openHistMealModal(key);
   };
+  // 保险：全局捕获代理一次，避免个别设备/组件阻断冒泡
+  if (!window.__dailyOpenBound) {
+    document.addEventListener('click', (e)=>{
+      const el = e.target && e.target.closest && e.target.closest('[data-open]');
+      if(!el) return;
+      const key = +el.getAttribute('data-open');
+      if (!isNaN(key)) {
+        e.preventDefault();
+        openHistMealModal(key);
+      }
+    }, true);
+    window.__dailyOpenBound = true;
+  }
 }
 
 // 周/月图表：周=7根；月=当月1号到月末的天数根；选中日放第一根并高亮
@@ -2398,6 +2453,50 @@ document.getElementById('profile-ai-suggest')?.addEventListener('click', async (
     if (note) note.textContent = '';
   }
 });
+
+// ============== 开发辅助：一键注入当天示例餐饮（用于测试"历史详情弹层"） ==============
+function __seedDemoMealsForToday(){
+  const buildTime = (h, m) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.getTime(); };
+  const meals = store.get('meals', []);
+  const todayKey = ymdKey(new Date());
+  const kept = meals.filter(m => ymdKey(new Date(m.time)) !== todayKey);
+  const makeEntry = (time, mealType, items) => ({
+    time,
+    mealType,
+    text: formatMealText(items),
+    items,
+    totals: calcTotals(items)
+  });
+  const breakfastItems = [
+    { name: '燕麦粥', protein: 8, carbs: 45, fat: 4, kcal: 250 },
+    { name: '鸡蛋', protein: 6.3, carbs: 0.6, fat: 5, kcal: 78 }
+  ];
+  const lunchItems = [
+    { name: '鸡胸肉', protein: 30, carbs: 0, fat: 3.5, kcal: 165 },
+    { name: '米饭', protein: 4, carbs: 70, fat: 1, kcal: 320 },
+    { name: '西兰花', protein: 3, carbs: 7, fat: 0.4, kcal: 35 }
+  ];
+  const dinnerItems = [
+    { name: '可乐', protein: 0, carbs: 39, fat: 0, kcal: 150 }
+  ];
+  kept.push(
+    makeEntry(buildTime(8, 30), 'breakfast', breakfastItems),
+    makeEntry(buildTime(12, 30), 'lunch', lunchItems),
+    makeEntry(buildTime(19, 30), 'dinner', dinnerItems)
+  );
+  store.set('meals', kept);
+  paintMeals();
+  updateStats();
+  showToast('已注入当天示例数据（早餐/午餐/晚餐）');
+}
+(function(){
+  try{
+    const sp = new URLSearchParams(location.search);
+    if (sp.has('seed') || (location.hash && location.hash.includes('seed'))) {
+      __seedDemoMealsForToday();
+    }
+  }catch{}
+})();
     </script>
   </body>
 </html>
