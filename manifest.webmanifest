@@ -1,6 +1,6 @@
 {
-  "name": "食刻 Foodtime",
-  "short_name": "食刻 Foodtime",
+  "name": "食刻",
+  "short_name": "食刻",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",
