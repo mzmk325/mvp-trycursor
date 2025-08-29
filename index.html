@@ -177,7 +177,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
         <button data-refresh class="px-2 py-1 bg-primary rounded-full text-white text-xs">点我刷新</button>
       </div>
       <!-- 今天 -->
-      <section id="page-today" class="block overflow-y-auto scrollbar-hide" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
+      <section id="page-today" class="block overflow-y-auto scrollbar-hide pb-8" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
         <!-- 今日标准卡 -->
         <section class="mb-6 bg-white dark:bg-neutral-800 rounded-xl shadow-light p-6 border border-neutral-200 dark:border-neutral-700">
           <div class="flex justify-between items-center mb-4">
@@ -331,7 +331,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
       </section>
 
       <!-- 历史 -->
-<section id="page-history" class="hidden overflow-y-auto scrollbar-hide" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
+<section id="page-history" class="hidden overflow-y-auto scrollbar-hide pb-8" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
   <!-- 顶部：周期 + 视图切换 -->
   <section class="mb-6 bg-white dark:bg-neutral-800 rounded-xl shadow-light p-5 border border-neutral-200 dark:border-neutral-700">
     <div class="flex justify-between items-center mb-5">
@@ -381,7 +381,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
 </section>
 
       <!-- 我的 -->
-      <section id="page-profile" class="hidden overflow-y-auto scrollbar-hide" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
+      <section id="page-profile" class="hidden overflow-y-auto scrollbar-hide pb-8" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
         <div class="space-y-6">
           <section class="bg-white dark:bg-neutral-800 rounded-xl shadow-light p-6 border border-neutral-200 dark:border-neutral-700">
             <div class="flex items-center justify-between">
@@ -434,7 +434,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
         </div>
       </section>
 <!-- 设置 · 个人资料（二级页面） -->
-<section id="page-settings-profile" class="hidden overflow-y-auto scrollbar-hide" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
+<section id="page-settings-profile" class="hidden overflow-y-auto scrollbar-hide pb-8" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
   <!-- 顶部：返回 + 保存 -->
   <section class="mb-4 bg-white dark:bg-neutral-800 rounded-xl shadow-light p-4 border border-neutral-200 dark:border-neutral-700 flex items-center justify-between">
     <button id="settings-back-profile" class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 text-sm">返回</button>
@@ -467,7 +467,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
 </section>
 
 <!-- 设置 · 营养目标（二级页面） -->
-<section id="page-settings-goals" class="hidden overflow-y-auto scrollbar-hide" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
+<section id="page-settings-goals" class="hidden overflow-y-auto scrollbar-hide pb-8" style="max-height: calc(100vh - 6rem - 5.5rem - env(safe-area-inset-bottom));">
   <!-- 顶部：返回 + 保存 -->
   <section class="mb-4 bg-white dark:bg-neutral-800 rounded-xl shadow-light p-4 border border-neutral-200 dark:border-neutral-700 flex items-center justify-between">
     <button id="settings-back-goal" class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 text-sm">返回</button>
@@ -1845,7 +1845,7 @@ const entry = {
     card.querySelector('[data-del]')?.addEventListener('click',()=>{
       const all = store.get('meals', []);
       const idx = all.findIndex(x=>x.time===m.time);
-      if(idx>-1){ all.splice(idx,1); store.set('meals', all); paintMeals(); updateStats(); }
+      if(idx>-1){ all.splice(idx,1); store.set('meals', all); paintMeals(); updateStats(); showToast('已删除本餐'); }
     });
 
     list.appendChild(card);
