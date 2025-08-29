@@ -70,8 +70,22 @@ exports.handler = async (event, context) => {
 
     console.log('收到AI调用请求:', { text: text?.substring(0, 100), hasImage: !!image, mode });
 
-    // 系统提示词
-    const SYS_HINT = `你是一名营养分析助手。
+    // 系统提示词（根据模式变化）
+    const SYS_HINT = (mode === 'goal')
+      ? `你是一名营养目标规划助手。
+
+请基于用户的身高/体重/体脂（可选）给出三套每日营养建议：增肌、维持、减脂。
+只返回严格JSON：
+{
+  "presets": {
+    "high":   { "cal": 0, "pro": 0, "fat": 0, "carbs": 0 },
+    "normal": { "cal": 0, "pro": 0, "fat": 0, "carbs": 0 },
+    "low":    { "cal": 0, "pro": 0, "fat": 0, "carbs": 0 }
+  },
+  "notes": "可选补充说明"
+}
+要求：数值为正数；若未给出carbs，请按 carbs = round((cal - pro*4 - fat*9)/4)。`
+      : `你是一名营养分析助手。
 
 任务A：识别图片或文字中的所有食物（可多种），估算每种营养（kcal/蛋白/脂肪/碳水）。若份量不确定做常识假设并在notes说明。
 
@@ -135,7 +149,7 @@ exports.handler = async (event, context) => {
       ];
     }
 
-    // 根据是否有图片选择不同的模型
+    // 根据是否有图片/模式选择不同的模型
     const modelName = image ? 'qwen-vl-max' : 'qwen-plus';
     console.log('使用模型:', modelName);
 
@@ -220,50 +234,76 @@ exports.handler = async (event, context) => {
 
     console.log('解析的JSON:', result);
 
-    // 规范化数据
-    const items = Array.isArray(result.items) ? result.items.map(it => {
-      const p = +it.protein || 0;
-      const c = +it.carbs || 0;
-      const f = +it.fat || 0;
-      const kcal = Number.isFinite(+it.kcal) ? Math.max(0, Math.round(+it.kcal)) : Math.round(p*4 + c*4 + f*9);
-      return { 
-        name: String(it.name || '食物'), 
-        protein: +p.toFixed(1), 
-        carbs: +c.toFixed(1), 
-        fat: +f.toFixed(1), 
-        kcal 
+    // 分模式返回
+    if (mode === 'goal') {
+      const src = result?.presets || {};
+      const normalize = (g = {}) => {
+        const cal = Math.max(0, Math.round(+g.cal || 0));
+        const pro = Math.max(0, Math.round(+g.pro || 0));
+        const fat = Math.max(0, Math.round(+g.fat || 0));
+        let carbs = Math.max(0, Math.round(+g.carbs || 0));
+        if (!carbs && cal && (pro || fat)) {
+          carbs = Math.max(0, Math.round((cal - pro*4 - fat*9)/4));
+        }
+        return { cal, pro, fat, carbs };
       };
-    }) : [];
+      const presets = {
+        high: normalize(src.high || {}),
+        normal: normalize(src.normal || {}),
+        low: normalize(src.low || {})
+      };
 
-    const calcTotals = (items) => {
-      const t = items.reduce((a, i) => {
-        const p = +i.protein || 0;
-        const c = +i.carbs || 0;
-        const f = +i.fat || 0;
-        const k = Number.isFinite(+i.kcal) ? Math.max(0, Math.round(+i.kcal)) : Math.round(p*4 + c*4 + f*9);
-        a.kcal += k;
-        a.protein += p;
-        a.carbs += c;
-        a.fat += f;
-        return a;
-      }, { kcal: 0, protein: 0, carbs: 0, fat: 0 });
-      t.protein = +t.protein.toFixed(1);
-      t.carbs = +t.carbs.toFixed(1);
-      t.fat = +t.fat.toFixed(1);
-      return t;
-    };
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ presets, notes: typeof result.notes === 'string' ? result.notes : '' })
+      };
+    } else {
+      // 识别/修正模式：规范化 items + totals
+      const items = Array.isArray(result.items) ? result.items.map(it => {
+        const p = +it.protein || 0;
+        const c = +it.carbs || 0;
+        const f = +it.fat || 0;
+        const kcal = Number.isFinite(+it.kcal) ? Math.max(0, Math.round(+it.kcal)) : Math.round(p*4 + c*4 + f*9);
+        return { 
+          name: String(it.name || '食物'), 
+          protein: +p.toFixed(1), 
+          carbs: +c.toFixed(1), 
+          fat: +f.toFixed(1), 
+          kcal 
+        };
+      }) : [];
 
-    const finalResult = { 
-      items, 
-      totals: calcTotals(items), 
-      notes: typeof result.notes === 'string' ? result.notes : '' 
-    };
+      const calcTotals = (items) => {
+        const t = items.reduce((a, i) => {
+          const p = +i.protein || 0;
+          const c = +i.carbs || 0;
+          const f = +i.fat || 0;
+          const k = Number.isFinite(+i.kcal) ? Math.max(0, Math.round(+i.kcal)) : Math.round(p*4 + c*4 + f*9);
+          a.kcal += k;
+          a.protein += p;
+          a.carbs += c;
+          a.fat += f;
+          return a;
+        }, { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+        t.protein = +t.protein.toFixed(1);
+        t.carbs = +t.carbs.toFixed(1);
+        t.fat = +t.fat.toFixed(1);
+        return t;
+      };
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(finalResult)
-    };
+      const finalResult = { 
+        items, 
+        totals: calcTotals(items), 
+        notes: typeof result.notes === 'string' ? result.notes : '' 
+      };
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(finalResult)
+      };
+    }
 
   } catch (error) {
     console.error('函数执行错误:', error);
