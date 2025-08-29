@@ -1477,11 +1477,11 @@ function renderAiResult(json){
       </div>
       <div class="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <label class="text-xs text-neutral-500 dark:text-neutral-400">份量调节</label>
+          <label class="text-xs text-neutral-500 dark:text-neutral-400">倍率调节</label>
           <div class="flex items-center gap-2 mt-1">
             <button class="w-6 h-6 rounded bg-neutral-200 dark:bg-neutral-600 text-xs" 
                     onclick="adjustQuantity(${index}, 0.5)">-</button>
-            <span class="quantity-display text-sm font-medium" data-index="${index}">1.0份</span>
+            <span class="quantity-display text-sm font-medium" data-index="${index}">1.0倍</span>
             <button class="w-6 h-6 rounded bg-neutral-200 dark:bg-neutral-600 text-xs" 
                     onclick="adjustQuantity(${index}, 2)">+</button>
           </div>
@@ -1583,7 +1583,7 @@ function updateItemDisplay(index, item) {
   const carbsEl = document.querySelector(`.carbs-display[data-index="${index}"]`);
   const fatEl = document.querySelector(`.fat-display[data-index="${index}"]`);
   
-  if (quantityEl) quantityEl.textContent = `${item.currentMultiplier.toFixed(1)}份`;
+  if (quantityEl) quantityEl.textContent = `${item.currentMultiplier.toFixed(1)}倍`;
   if (kcalEl) kcalEl.textContent = `${item.kcal} kcal`;
   if (proteinEl) proteinEl.textContent = item.protein.toFixed(1);
   if (carbsEl) carbsEl.textContent = item.carbs.toFixed(1);
