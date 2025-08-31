@@ -1,4 +1,53 @@
 <!DOCTYPE html>
+<!-- 
+==========================================
+食刻 Foodtime - 营养记录应用架构分析
+==========================================
+
+📱 页面结构 (Pages)
+- page-today: 今日记录页面，包含拍照识别、文字输入、营养统计
+- page-history: 历史记录页面，支持周/月视图、日历选择、图表展示
+- page-profile: 个人资料页面，显示用户信息、会员状态、设置入口
+- page-settings-profile: 个人资料设置页面，编辑基本信息
+- page-settings-goals: 营养目标设置页面，配置三套预设目标
+
+🎯 核心模块 (Core Modules)
+- AI识别模块: 调用通义千问API进行图片/文字食物识别和营养分析
+- 数据存储模块: 基于localStorage的轻量级数据持久化方案
+- 主题切换模块: 支持自动/手动明暗主题切换，适配iOS系统
+- 图表展示模块: 基于ECharts的营养数据可视化展示
+
+🔧 工具函数 (Utility Functions)
+- 日期处理: ymdKey、addDays、startOfWeek等日期格式化工具
+- 营养计算: calcTotals、getTargetCarbs等营养成分计算函数
+- 图片处理: compressImage图片压缩和Base64转换
+- 数据格式化: formatMealText生成食物描述文案
+
+🎨 UI组件 (UI Components)
+- 底部导航栏: 三大页面切换，支持手势滑动
+- 弹层系统: AI确认弹层、历史详情弹层、客服帮助弹层
+- 进度条组件: 营养目标完成度可视化展示
+- 餐次选择器: 早餐/午餐/晚餐/夜宵/加餐切换
+
+📊 数据模型 (Data Models)
+- Meal: 餐次记录，包含时间、类型、食物列表、营养总计
+- User: 用户信息，包含个人资料、营养目标预设
+- GoalPresets: 三套营养目标配置（增肌/维持/减脂）
+
+🔄 状态管理 (State Management)
+- 当前餐次状态: currentMeal跟踪用户选择的餐次类型
+- 历史页状态: historyView、periodStart、selectedDate管理视图状态
+- AI会话状态: __aiSession管理AI识别的会话数据
+- 编辑状态: editingOldMealKey、tempAiItemsForEdit管理编辑模式
+
+⚡ 交互功能 (Interactive Features)
+- 手势支持: 页面滑动切换、图片选择
+- 实时编辑: AI识别结果可手动调整份量和删除项目
+- 智能修正: 支持文字指令修正AI识别结果
+- 离线支持: Service Worker实现PWA离线功能
+
+==========================================
+-->
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
@@ -34,6 +83,8 @@ if('serviceWorker' in navigator){
 </script>
     <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/shared/nutrition.js"></script>
+    <script src="/shared/date.js"></script>
     <!-- 按需加载：进入历史页时再动态引入 ECharts -->
     <meta id="meta-theme-color-runtime" name="theme-color" content="#FFFFFF">
     <script>
@@ -162,7 +213,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
             <i class="fa-solid fa-moon dark:hidden text-neutral-700"></i>
             <i class="fa-solid fa-sun hidden dark:block text-neutral-300"></i>
           </button>
-          <button id="help-btn" type="button" onclick="(function(){var m=document.getElementById('help-modal'); if(m){m.classList.remove('hidden'); m.classList.add('flex');}})();" class="touch-target flex items-center justify-center rounded-full p-2 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors">
+          <button id="help-btn" type="button" class="touch-target flex items-center justify-center rounded-full p-2 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors">
             <i class="fa-solid fa-question-circle text-neutral-700 dark:text-neutral-300"></i>
           </button>
         </div>
@@ -482,7 +533,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
       <label class="flex flex-col gap-1"><span class="text-neutral-500">热量(kcal)</span><input id="g-high-cal" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60"></label>
       <label class="flex flex-col gap-1"><span class="text-neutral-500">蛋白(g)</span><input id="g-high-pro" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60"></label>
       <label class="flex flex-col gap-1"><span class="text-neutral-500">脂肪(g)</span><input id="g-high-fat" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60"></label>
-      <label class="flex flex-col gap-1"><span class="text-neutral-500">碳水(g)</span><input id="g-high-carb" type="number" class="p-2 rounded-lg border bg-neutral-100 dark:bg-neutral-700/60 text-center cursor-not-allowed" disabled></label>
+      <label class="flex flex-col gap-1"><span class="text-neutral-500">碳水(g)</span><input id="g-high-carb" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60 text-center" placeholder="自动计算，可改"></label>
     </div>
   </section>
   <section class="mb-6 bg-white dark:bg-neutral-800 rounded-xl shadow-light p-5 border border-neutral-200 dark:border-neutral-700">
@@ -491,7 +542,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
       <label class="flex flex-col gap-1"><span class="text-neutral-500">热量(kcal)</span><input id="g-normal-cal" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60"></label>
       <label class="flex flex-col gap-1"><span class="text-neutral-500">蛋白(g)</span><input id="g-normal-pro" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60"></label>
       <label class="flex flex-col gap-1"><span class="text-neutral-500">脂肪(g)</span><input id="g-normal-fat" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60"></label>
-      <label class="flex flex-col gap-1"><span class="text-neutral-500">碳水(g)</span><input id="g-normal-carb" type="number" class="p-2 rounded-lg border bg-neutral-100 dark:bg-neutral-700/60 text-center cursor-not-allowed" disabled></label>
+      <label class="flex flex-col gap-1"><span class="text-neutral-500">碳水(g)</span><input id="g-normal-carb" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60 text-center" placeholder="自动计算，可改"></label>
     </div>
   </section>
   <section class="mb-6 bg-white dark:bg-neutral-800 rounded-xl shadow-light p-5 border border-neutral-200 dark:border-neutral-700">
@@ -500,7 +551,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
       <label class="flex flex-col gap-1"><span class="text-neutral-500">热量(kcal)</span><input id="g-low-cal" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60"></label>
       <label class="flex flex-col gap-1"><span class="text-neutral-500">蛋白(g)</span><input id="g-low-pro" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60"></label>
       <label class="flex flex-col gap-1"><span class="text-neutral-500">脂肪(g)</span><input id="g-low-fat" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60"></label>
-      <label class="flex flex-col gap-1"><span class="text-neutral-500">碳水(g)</span><input id="g-low-carb" type="number" class="p-2 rounded-lg border bg-neutral-100 dark:bg-neutral-700/60 text-center cursor-not-allowed" disabled></label>
+      <label class="flex flex-col gap-1"><span class="text-neutral-500">碳水(g)</span><input id="g-low-carb" type="number" class="p-2 rounded-lg border bg-white/80 dark:bg-neutral-700/60 text-center" placeholder="自动计算，可改"></label>
     </div>
     <p class="text-xs text-neutral-500 mt-3">说明：碳水根据「热量 - 蛋白×4 - 脂肪×9」自动推算。</p>
   </section>
@@ -663,7 +714,7 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
     </div>
 
     <script>
-      // iOS PWA：从后台回到前台时，若聚焦在输入框，系统可能弹出“撤销/取消”（Shake to Undo）。
+      // iOS PWA：从后台回到前台时，若聚焦在输入框，系统可能弹出"撤销/取消"（Shake to Undo）。
       // 规避：前台时主动取消输入焦点，清空选择，避免触发系统撤销弹框。
       (function mitigateIOSUndo(){
         const blurActive = ()=>{
@@ -690,25 +741,12 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
 // ======== 通过Netlify函数调用通义千问API ========
 // API Key现在通过环境变量安全存储，不再暴露在前端代码中
 
-const SYS_HINT = `你是一名营养分析助手。
-
-任务A：识别图片或文字中的所有食物（可多种），估算每种营养（kcal/蛋白/脂肪/碳水）。若份量不确定做常识假设并在notes说明。
-
-任务B：修正时，根据用户的修正指令对当前食物清单进行智能调整：
-- "没有XXX" 或 "删除XXX" → 从清单中移除该食物
-- "XXX改成YYY" → 替换食物
-- "多一份XXX" 或 "减少XXX" → 调整份量
-- "只有XXX" → 只保留指定食物，删除其他
-- 其他指令按照常理理解执行
-
-请仅返回严格JSON：
-{
-  "items": [ {"name":"...","protein":0,"fat":0,"carbs":0,"kcal":0} ],
-  "notes": "可选修正说明"
-}
-要求：中文菜名；蛋白/脂肪/碳水可一位小数；kcal为整数。`;
+// 提示词逻辑由后端统一维护
 
 function calcTotals(items){
+  if (window.SharedNutrition && SharedNutrition.calcTotals) {
+    return SharedNutrition.calcTotals(items);
+  }
   const t = items.reduce((a,i)=>{
     const p=+i.protein||0, c=+i.carbs||0, f=+i.fat||0;
     const k = Number.isFinite(+i.kcal) ? Math.max(0, Math.round(+i.kcal)) : Math.round(p*4+c*4+f*9);
@@ -765,8 +803,9 @@ async function callAI({ text=null, image=null, mode='auto', prevJSON=null }){
   return result;
 }
 const dateKeyOf = (ts)=> {
-  const d = new Date(ts); const two=n=>n<10?'0'+n:''+n;
-  return `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
+  const d = new Date(ts);
+  if (window.SharedDate && SharedDate.formatYMD) return SharedDate.formatYMD(d);
+  const two=n=>n<10?'0'+n:''+n; return `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
 };
 const uid = ()=> 'm_' + Math.random().toString(36).slice(2,9) + Date.now();
 let editingOldMealKey = null;   // 若不为 null，则确认时覆盖这条旧餐
@@ -913,8 +952,8 @@ galleryInput.addEventListener('change', async (e) => {
         set(key, val){ localStorage.setItem(key, JSON.stringify(val)) }
       }
       function ymdKey(d=new Date()){
-  const two = n => n<10?'0'+n:''+n;
-  return `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
+  if (window.SharedDate && SharedDate.formatYMD) return SharedDate.formatYMD(d);
+  const two = n => n<10?'0'+n:''+n; return `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
 }
 
 // —— 三套预设 + 当前模式 ——
@@ -959,6 +998,20 @@ function loadGoalsForToday(){
   document.getElementById('goal-fat').value = g.fat;
   store.set('todayGoals', g);
   syncGoalLabels();
+}
+function getTargetCarbs(cal, pro, fat){
+  try{
+    const presets = getGoalPresets();
+    const mode = getCurrentMode();
+    const presetCarbs = presets && presets[mode] ? +presets[mode].carbs : NaN;
+    if (Number.isFinite(presetCarbs) && presetCarbs >= 0) return Math.round(presetCarbs);
+  }catch{}
+  if (window.SharedNutrition && SharedNutrition.getTargetCarbs) {
+    return SharedNutrition.getTargetCarbs(cal, pro, fat);
+  }
+  let carbs = Math.round((cal - pro*4 - fat*9) / 4);
+  if (!isFinite(carbs) || carbs < 0) carbs = 0;
+  return carbs;
 }
 
 // 手动改了首页数字时，保存"今天覆盖"
@@ -1100,7 +1153,7 @@ function loadGoalForm(){
     if (calEl) calEl.value = set.cal;
     if (proEl) proEl.value = set.pro;
     if (fatEl) fatEl.value = set.fat;
-    if (carbEl) carbEl.value = Math.max(0, Math.round((set.cal - set.pro*4 - set.fat*9)/4));
+    if (carbEl) carbEl.value = set.carbs || Math.max(0, Math.round((set.cal - set.pro*4 - set.fat*9)/4));
   };
   fill('g-high', gs.high);
   fill('g-normal', gs.normal);
@@ -1114,13 +1167,16 @@ function saveGoalForm(){
   const gs = {
     high:   { cal:+(document.getElementById('g-high-cal')?.value)|| prev.high.cal,
               pro:+(document.getElementById('g-high-pro')?.value)|| prev.high.pro,
-              fat:+(document.getElementById('g-high-fat')?.value)|| prev.high.fat },
+              fat:+(document.getElementById('g-high-fat')?.value)|| prev.high.fat,
+              carbs:+(document.getElementById('g-high-carb')?.value) || Math.max(0, Math.round(((+document.getElementById('g-high-cal')?.value||prev.high.cal) - ((+document.getElementById('g-high-pro')?.value||prev.high.pro)*4) - ((+document.getElementById('g-high-fat')?.value||prev.high.fat)*9))/4)) },
     normal: { cal:+(document.getElementById('g-normal-cal')?.value)|| prev.normal.cal,
               pro:+(document.getElementById('g-normal-pro')?.value)|| prev.normal.pro,
-              fat:+(document.getElementById('g-normal-fat')?.value)|| prev.normal.fat },
+              fat:+(document.getElementById('g-normal-fat')?.value)|| prev.normal.fat,
+              carbs:+(document.getElementById('g-normal-carb')?.value) || Math.max(0, Math.round(((+document.getElementById('g-normal-cal')?.value||prev.normal.cal) - ((+document.getElementById('g-normal-pro')?.value||prev.normal.pro)*4) - ((+document.getElementById('g-normal-fat')?.value||prev.normal.fat)*9))/4)) },
     low:    { cal:+(document.getElementById('g-low-cal')?.value)|| prev.low.cal,
               pro:+(document.getElementById('g-low-pro')?.value)|| prev.low.pro,
-              fat:+(document.getElementById('g-low-fat')?.value)|| prev.low.fat },
+              fat:+(document.getElementById('g-low-fat')?.value)|| prev.low.fat,
+              carbs:+(document.getElementById('g-low-carb')?.value) || Math.max(0, Math.round(((+document.getElementById('g-low-cal')?.value||prev.low.cal) - ((+document.getElementById('g-low-pro')?.value||prev.low.pro)*4) - ((+document.getElementById('g-low-fat')?.value||prev.low.fat)*9))/4)) },
   };
   setGoalPresets(gs);     // ← 写回
   loadGoalsForToday();    // ← 用当前模式灌入"今日"
@@ -1267,9 +1323,7 @@ function syncGoalLabels(){
   const pro = +document.getElementById('goal-pro').value || 100;
   const fat = +document.getElementById('goal-fat').value || 65;
 
-  // 按公式推算碳水：carbs = (热量 - 蛋白×4 - 脂肪×9) / 4
-  let carbs = Math.round((cal - pro*4 - fat*9) / 4);
-  if (!isFinite(carbs) || carbs < 0) carbs = 0;
+  const carbs = getTargetCarbs(cal, pro, fat);
 
   // —— 首页小字（目标）——
   document.getElementById('goal-pro-label').textContent  = pro;
@@ -1280,7 +1334,7 @@ function syncGoalLabels(){
   // —— "我的 → 营养与目标"一行：始终显示「维持」预设 ——
   const ps = getGoalPresets();
   const normal = ps && ps.normal ? ps.normal : { cal:2000, pro:100, fat:65 };
-  let nCarbs = Math.round(((+normal.cal||0) - (+normal.pro||0)*4 - (+normal.fat||0)*9) / 4);
+  let nCarbs = normal.carbs || Math.round(((+normal.cal||0) - (+normal.pro||0)*4 - (+normal.fat||0)*9) / 4);
   if (!isFinite(nCarbs) || nCarbs < 0) nCarbs = 0;
   document.getElementById('profile-goal-cal').textContent   = normal.cal || 2000;
   document.getElementById('profile-goal-pro').textContent   = normal.pro || 100;
@@ -1354,8 +1408,19 @@ Object.entries(mealChipEls).forEach(([key, el]) => {
   });
 });
 
-// 初始设为"晚餐"
-setMeal('dinner');
+// 根据时间自动定位默认餐次
+function getDefaultMealByTime(){
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 10) return 'breakfast';
+  if (hour >= 10 && hour < 14) return 'lunch';
+  if (hour >= 14 && hour < 21) return 'dinner';
+  // 深夜：若夜宵开关未开启，则回退到晚餐
+  const nightEnabled = !!document.getElementById('night-snack')?.checked;
+  return nightEnabled ? 'night' : 'dinner';
+}
+
+// 初始化：自动选择默认餐次
+setMeal(getDefaultMealByTime());
 
       // 已移除健康检查功能，直接调用通义千问API
 
@@ -1445,12 +1510,11 @@ function safeParseJSON(txt){
       carbs: Number(x.carbs??0),
     })) : [];
 
-    const totals = items.reduce((a,i)=>({
-      kcal:a.kcal+i.kcal,
-      protein:+(a.protein+i.protein).toFixed(1),
-      fat:+(a.fat+i.fat).toFixed(1),
-      carbs:+(a.carbs+i.carbs).toFixed(1),
-    }), {kcal:0,protein:0,fat:0,carbs:0});
+    const totals = (window.SharedNutrition && SharedNutrition.calcTotals) ? SharedNutrition.calcTotals(items) : items.reduce((a,i)=>{
+      const p=+i.protein||0, c=+i.carbs||0, f=+i.fat||0; const k=Number.isFinite(+i.kcal)?Math.max(0,Math.round(+i.kcal)):Math.round(p*4+c*4+f*9);
+      a.kcal+=k; a.protein+=p; a.carbs+=c; a.fat+=f; return a;
+    }, {kcal:0,protein:0,carbs:0,fat:0});
+    totals.protein=+totals.protein.toFixed(1); totals.carbs=+totals.carbs.toFixed(1); totals.fat=+totals.fat.toFixed(1);
 
     const out = {
       items,
@@ -1458,7 +1522,13 @@ function safeParseJSON(txt){
       notes: typeof obj.notes==='string' ? obj.notes : ''
     };
     return out;
-  }catch{
+  }catch(e1){
+    const m = txt && txt.match && txt.match(/\{[\s\S]*\}/);
+    if (m) {
+      try{
+        return safeParseJSON(m[0]);
+      }catch(e2){}
+    }
     throw new Error('模型返回格式异常：不是合法JSON');
   }
 }
@@ -1883,8 +1953,7 @@ const entry = {
   const goalCal = +document.getElementById('goal-cal').value || 2000;
   const goalPro = +document.getElementById('goal-pro').value || 100;
   const goalFat = +document.getElementById('goal-fat').value || 65;
-  let goalCarbs = Math.round((goalCal - goalPro*4 - goalFat*9) / 4);
-  if (!isFinite(goalCarbs) || goalCarbs < 0) goalCarbs = 0;
+  let goalCarbs = getTargetCarbs(goalCal, goalPro, goalFat);
   const goalCarbsEl = document.getElementById('goal-carbs-label');
   if (goalCarbsEl) goalCarbsEl.textContent = goalCarbs;
 
@@ -1926,17 +1995,12 @@ paintMeals();
 const MEAL_I18N = { breakfast:'早餐', lunch:'午餐', dinner:'晚餐', night:'夜宵', snack:'加餐' };
 const MEAL_ORDER = ['breakfast','lunch','dinner','snack','night'];
 
-const two = n => n < 10 ? '0'+n : ''+n;
-const ymd = d => `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
-const addDays = (d, n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
-const startOfWeek = (d) => { // 周一为一周开始
-  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const wd = (x.getDay() + 6) % 7; // 0..6 => Mon..Sun
-  x.setDate(x.getDate() - wd);
-  return x;
-};
-const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
-const endOfMonth = (d) => new Date(d.getFullYear(), d.getMonth()+1, 0);
+const two = (n) => (window.SharedDate && SharedDate.twoDigits) ? SharedDate.twoDigits(n) : (n < 10 ? '0'+n : ''+n);
+const ymd = (d) => (window.SharedDate && SharedDate.formatYMD) ? SharedDate.formatYMD(d) : `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
+const addDays = (d, n) => (window.SharedDate && SharedDate.addDays) ? SharedDate.addDays(d, n) : (function(){ const x=new Date(d); x.setDate(x.getDate()+n); return x; })();
+const startOfWeek = (d) => (window.SharedDate && SharedDate.startOfWeek) ? SharedDate.startOfWeek(d) : (function(){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const wd = (x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; })();
+const startOfMonth = (d) => (window.SharedDate && SharedDate.startOfMonth) ? SharedDate.startOfMonth(d) : new Date(d.getFullYear(), d.getMonth(), 1);
+const endOfMonth = (d) => (window.SharedDate && SharedDate.endOfMonth) ? SharedDate.endOfMonth(d) : new Date(d.getFullYear(), d.getMonth()+1, 0);
 
 const getMeals = () => store.get('meals', []);
 const mealsOfDate = (date) => {
@@ -1980,7 +2044,7 @@ function openHistMealModal(mealKey){
   const titleMap = {breakfast:'早餐', lunch:'午餐', dinner:'晚餐', night:'夜宵', snack:'加餐'};
   const hTitle = document.getElementById('hm-title'); if(hTitle) hTitle.textContent = (titleMap[m.mealType]||'餐') + '详情';
   const d = new Date(m.time);
-  const two = n => n<10?'0'+n:''+n;
+  const two = (n)=> (window.SharedDate && SharedDate.twoDigits) ? SharedDate.twoDigits(n) : (n<10?'0'+n:''+n);
   const hDate = document.getElementById('hm-date'); if(hDate) hDate.textContent = `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
   const hNote = document.getElementById('hm-note'); if(hNote) hNote.value = m.note || '';
 
@@ -2178,7 +2242,7 @@ function renderCalendar(){
     <button class="w-full p-3 rounded-xl border ${isSel ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-neutral-50 dark:hover:bg-neutral-700/40'} transition-colors text-center"
             data-pick="${key}">
       <div class="text-base font-medium ${isSel?'text-primary':''}">${date.getDate()}</div>
-      <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-tight">
+      <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-tight text-center tabular-nums">
         <div>${t.kcal}</div>
         <div>kcal</div>
       </div>
@@ -2230,8 +2294,8 @@ function renderDailyDetails(date){
   const target = document.getElementById('daily-target');
   const summary = document.getElementById('daily-summary');
 
-  const two = n => n<10?'0'+n:''+n;
-  const ymd = d => `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
+  const two = (n)=> (window.SharedDate && SharedDate.twoDigits) ? SharedDate.twoDigits(n) : (n<10?'0'+n:''+n);
+  const ymd = (d)=> (window.SharedDate && SharedDate.formatYMD) ? SharedDate.formatYMD(d) : `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}`;
 
   head.textContent = ymd(date);
 
@@ -2239,8 +2303,7 @@ function renderDailyDetails(date){
   const goalCal = +document.getElementById('goal-cal').value || 2000;
   const goalPro = +document.getElementById('goal-pro').value || 100;
   const goalFat = +document.getElementById('goal-fat').value || 65;
-  let goalCarbs = Math.round((goalCal - goalPro*4 - goalFat*9) / 4);
-  if (!isFinite(goalCarbs) || goalCarbs < 0) goalCarbs = 0;
+  let goalCarbs = (window.SharedNutrition && SharedNutrition.getTargetCarbs) ? SharedNutrition.getTargetCarbs(goalCal, goalPro, goalFat) : (function(){ let v = Math.round((goalCal - goalPro*4 - goalFat*9) / 4); if (!isFinite(v) || v < 0) v = 0; return v; })();
   target.textContent = `当日目标：${goalCal}kcal｜蛋白${goalPro}g｜碳水${goalCarbs}g｜脂肪${goalFat}g`;
 
   // 列表
@@ -2299,6 +2362,17 @@ function renderDailyDetails(date){
 
 // 周/月图表：周=7根；月=当月1号到月末的天数根；选中日放第一根并高亮
 function initChart(metric = 'calories', view = historyView, start = periodStart, picked = selectedDate) {
+  // 兜底：若 echarts 还未加载则按需加载，加载后再重入
+  if (typeof window.echarts === 'undefined') {
+    if (!window.__loadingEcharts) {
+      window.__loadingEcharts = true;
+      const s = document.createElement('script');
+      s.src = 'https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js';
+      s.onload = function(){ window.__loadingEcharts = false; try{ initChart(metric, view, start, picked); }catch(e){} };
+      document.head.appendChild(s);
+    }
+    return;
+  }
   const chartDom = document.getElementById('metrics-chart');
   const existing = echarts.getInstanceByDom(chartDom);
 if (existing) existing.dispose();
