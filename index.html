@@ -2242,7 +2242,7 @@ function renderCalendar(){
     <button class="w-full p-3 rounded-xl border ${isSel ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-neutral-50 dark:hover:bg-neutral-700/40'} transition-colors text-center"
             data-pick="${key}">
       <div class="text-base font-medium ${isSel?'text-primary':''}">${date.getDate()}</div>
-      <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-tight text-center tabular-nums">
+      <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-tight text-center tabular-nums flex flex-col items-center">
         <div>${t.kcal}</div>
         <div>kcal</div>
       </div>
@@ -2472,6 +2472,47 @@ loadGoalsForToday();
 loadProfile();
 // 初始进入"今天"
 switchTab('today');
+
+// —— 跨日自动刷新（每日 00:00 触发 + 回前台校验） ——
+let __lastDateKey = ymdKey(new Date());
+function refreshForNewDay(){
+  __lastDateKey = ymdKey(new Date());
+  // 更新今天页日期
+  try{ const cd = document.getElementById('current-date'); if(cd) cd.textContent = __lastDateKey; }catch{}
+  // 重新加载今日目标与列表/进度
+  try{ loadGoalsForToday(); }catch{}
+  try{ syncGoalLabels(); }catch{}
+  try{ paintMeals(); }catch{}
+  try{ updateStats(); }catch{}
+  // 重置历史页到新的一天
+  try{
+    if (typeof renderPeriodHeader === 'function' && typeof renderCalendar === 'function' && typeof renderDailyDetails === 'function') {
+      selectedDate = new Date();
+      renderPeriodHeader();
+      renderCalendar();
+      renderDailyDetails(selectedDate);
+    }
+    if (typeof initChart === 'function') {
+      const st = window.__chartState || {}; // 保持当前指标
+      initChart(st.metric || 'calories', historyView, periodStart, selectedDate);
+    }
+  }catch{}
+}
+
+function scheduleMidnightRefresh(){
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 50);
+  const delay = Math.max(0, next - now);
+  setTimeout(()=>{ refreshForNewDay(); scheduleMidnightRefresh(); }, delay);
+}
+scheduleMidnightRefresh();
+// 当应用回到前台时，如果已经跨日则立即刷新
+document.addEventListener('visibilitychange', ()=>{
+  if (document.visibilityState === 'visible') {
+    const todayKey = ymdKey(new Date());
+    if (todayKey !== __lastDateKey) refreshForNewDay();
+  }
+});
 
 // —— 客服弹窗逻辑（不依赖其他工具） ——
 (function initHelpModal(){
