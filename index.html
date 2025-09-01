@@ -905,8 +905,7 @@ function initAiMealControls(){
         const t = btn.getAttribute('data-meal');
         setMeal(t);
         label.textContent = AI_MEAL_I18N[t] || '—';
-        selector.classList.add('hidden');
-        // 更新高亮
+        // 保持展开，仅更新高亮
         selector.querySelectorAll('.ai-meal-chip').forEach(b=>{
           const tp = b.getAttribute('data-meal');
           b.classList.remove('bg-primary','text-white');
