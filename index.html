@@ -684,7 +684,23 @@ input, textarea, [contenteditable="true"], [contenteditable=""] {
           </div>
         </div>
         <div class="p-5 border-b border-neutral-200 dark:border-neutral-700">
-          <h3 class="text-sm font-medium mb-4">AI 识别结果</h3>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-medium">AI 识别结果</h3>
+            <div class="text-xs text-neutral-500">
+              <span>餐次：</span>
+              <span id="ai-meal-label" class="px-2 py-0.5 rounded bg-neutral-900 text-white dark:bg-neutral-200 dark:text-neutral-900">—</span>
+              <button id="ai-meal-edit" class="ml-1 px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-600">收起</button>
+            </div>
+          </div>
+          <div id="ai-meal-selector" class="mb-3 overflow-x-auto scrollbar-hide">
+            <div class="flex space-x-2">
+              <button type="button" data-meal="breakfast" class="ai-meal-chip px-3 py-1.5 rounded-lg text-xs bg-neutral-100 dark:bg-neutral-700">早餐</button>
+              <button type="button" data-meal="lunch" class="ai-meal-chip px-3 py-1.5 rounded-lg text-xs bg-neutral-100 dark:bg-neutral-700">午餐</button>
+              <button type="button" data-meal="dinner" class="ai-meal-chip px-3 py-1.5 rounded-lg text-xs bg-neutral-100 dark:bg-neutral-700">晚餐</button>
+              <button type="button" data-meal="night" class="ai-meal-chip px-3 py-1.5 rounded-lg text-xs bg-neutral-100 dark:bg-neutral-700">夜宵</button>
+              <button type="button" data-meal="snack" class="ai-meal-chip px-3 py-1.5 rounded-lg text-xs bg-neutral-100 dark:bg-neutral-700">加餐</button>
+            </div>
+          </div>
           <div id="ai-table" class="space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
             <!-- 动态填充 -->
           </div>
@@ -847,6 +863,60 @@ aiModal.addEventListener('click', (e) => { if (e.target === aiModal) closeAiModa
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAiModal(); });
 const photoInput = document.getElementById('photo-input');
 const galleryInput = document.getElementById('gallery-input');
+// —— AI弹层：餐次显示与修改 ——
+const AI_MEAL_I18N = { breakfast:'早餐', lunch:'午餐', dinner:'晚餐', night:'夜宵', snack:'加餐' };
+function initAiMealControls(){
+  try{
+    const label = document.getElementById('ai-meal-label');
+    const editBtn = document.getElementById('ai-meal-edit');
+    const selector = document.getElementById('ai-meal-selector');
+    if (!label || !editBtn || !selector) return;
+    // 展示当前餐次，并默认展开选择器
+    const nightEnabled = !!document.getElementById('night-snack')?.checked;
+    const snackEnabled = !!document.getElementById('snack')?.checked;
+    const meal = (currentMeal==='night' && !nightEnabled) ? 'dinner' : (currentMeal==='snack' && !snackEnabled ? 'dinner' : currentMeal);
+    label.textContent = AI_MEAL_I18N[meal] || '—';
+    selector.classList.remove('hidden');
+    editBtn.textContent = '收起';
+    // 根据开关隐藏夜宵/加餐
+    selector.querySelectorAll('.ai-meal-chip').forEach(btn=>{
+      const type = btn.getAttribute('data-meal');
+      const shouldHide = (type==='night' && !nightEnabled) || (type==='snack' && !snackEnabled);
+      btn.classList.toggle('hidden', shouldHide);
+      btn.classList.toggle('pointer-events-none', shouldHide);
+    });
+    // 高亮当前
+    selector.querySelectorAll('.ai-meal-chip').forEach(btn=>{
+      const type = btn.getAttribute('data-meal');
+      btn.classList.remove('bg-primary','text-white');
+      btn.classList.add('bg-neutral-100','dark:bg-neutral-700');
+      if (type===meal){
+        btn.classList.remove('bg-neutral-100','dark:bg-neutral-700');
+        btn.classList.add('bg-primary','text-white');
+      }
+    });
+    // 交互
+    editBtn.onclick = ()=>{ 
+      selector.classList.toggle('hidden');
+      editBtn.textContent = selector.classList.contains('hidden') ? '修改' : '收起';
+    };
+    selector.querySelectorAll('.ai-meal-chip').forEach(btn=>{
+      btn.onclick = ()=>{
+        const t = btn.getAttribute('data-meal');
+        setMeal(t);
+        label.textContent = AI_MEAL_I18N[t] || '—';
+        selector.classList.add('hidden');
+        // 更新高亮
+        selector.querySelectorAll('.ai-meal-chip').forEach(b=>{
+          const tp = b.getAttribute('data-meal');
+          b.classList.remove('bg-primary','text-white');
+          b.classList.add('bg-neutral-100','dark:bg-neutral-700');
+          if (tp===t){ b.classList.remove('bg-neutral-100','dark:bg-neutral-700'); b.classList.add('bg-primary','text-white'); }
+        });
+      };
+    });
+  }catch(e){ console.warn('initAiMealControls failed', e); }
+}
 // 图片压缩函数
 function compressImage(file, maxSizeMB = 2) {
   return new Promise((resolve) => {
@@ -918,6 +988,7 @@ photoInput.addEventListener('change', async (e) => {
     }
 
     aiModal.classList.remove('hidden');
+    initAiMealControls();
     runAOnce(); // 仅图片 +（可选）修正
   } catch (error) {
     console.error('图片处理失败:', error);
@@ -941,6 +1012,7 @@ galleryInput.addEventListener('change', async (e) => {
       previewEl.classList.remove('hidden');
     }
     aiModal.classList.remove('hidden');
+    initAiMealControls();
     runAOnce();
   } catch (error) {
     console.error('图片处理失败:', error);
@@ -1448,6 +1520,7 @@ setMeal(getDefaultMealByTime());
 
   // 打开弹窗并按"纯文字"执行一次
   aiModal.classList.remove('hidden');
+  initAiMealControls();
   runAOnce();
 };
       // "纸飞机"发送：把修正说明带上，再识别一次并刷新表格
@@ -1957,22 +2030,34 @@ const entry = {
   const goalCarbsEl = document.getElementById('goal-carbs-label');
   if (goalCarbsEl) goalCarbsEl.textContent = goalCarbs;
 
-  // 计算剩余
+  // 计算剩余与超出
   const remainCal = Math.max(0, goalCal - totals.kcal);
   const remainPro = Math.max(0, goalPro - totals.protein);
   const remainCar = Math.max(0, goalCarbs - totals.carbs);
   const remainFat = Math.max(0, goalFat - totals.fat);
+  const overCal = Math.max(0, totals.kcal - goalCal);
+  const overPro = Math.max(0, totals.protein - goalPro);
+  const overCar = Math.max(0, totals.carbs - goalCarbs);
+  const overFat = Math.max(0, totals.fat - goalFat);
 
   // 热量进度 + 文案"已/目/剩"
   const calPct = goalCal ? Math.min(100, Math.round((totals.kcal/goalCal)*100)) : 0;
-  const calText = `${totals.kcal} / ${goalCal} kcal（剩余 ${remainCal}）`;
+  const calText = totals.kcal <= goalCal
+    ? `${totals.kcal} / ${goalCal} kcal（剩余 ${remainCal}）`
+    : `${totals.kcal} / ${goalCal} kcal（超 ${overCal}）`;
   document.getElementById('calories-progress').textContent = calText;
   document.getElementById('calories-bar').style.width = calPct + '%';
 
   // 数字显示
-  document.getElementById('stat-protein').textContent = `${(totals.protein||0).toFixed(1)} g（剩 ${remainPro.toFixed(1)}）`;
-  document.getElementById('stat-carbs').textContent   = `${(totals.carbs||0).toFixed(1)} g（剩 ${remainCar.toFixed(1)}）`;
-  document.getElementById('stat-fat').textContent     = `${(totals.fat||0).toFixed(1)} g（剩 ${remainFat.toFixed(1)}）`;
+  document.getElementById('stat-protein').textContent = (totals.protein <= goalPro)
+    ? `${(totals.protein||0).toFixed(1)} g（剩 ${remainPro.toFixed(1)}）`
+    : `${(totals.protein||0).toFixed(1)} g（超 ${overPro.toFixed(1)}）`;
+  document.getElementById('stat-carbs').textContent   = (totals.carbs <= goalCarbs)
+    ? `${(totals.carbs||0).toFixed(1)} g（剩 ${remainCar.toFixed(1)}）`
+    : `${(totals.carbs||0).toFixed(1)} g（超 ${overCar.toFixed(1)}）`;
+  document.getElementById('stat-fat').textContent     = (totals.fat <= goalFat)
+    ? `${(totals.fat||0).toFixed(1)} g（剩 ${remainFat.toFixed(1)}）`
+    : `${(totals.fat||0).toFixed(1)} g（超 ${overFat.toFixed(1)}）`;
 
   // 进度条
   const proPct  = goalPro   ? Math.min(100, Math.round((totals.protein/goalPro)*100)) : 0;
