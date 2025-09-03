@@ -1,10 +1,13 @@
 // 在Node.js 18+中，fetch是内置的
 // 如果是较老版本，会回退到node-fetch
 let fetch;
+let SharedNutrition;
 try {
   fetch = globalThis.fetch || require('node-fetch');
+  SharedNutrition = require('../../shared/nutrition.js');
 } catch (e) {
   fetch = require('node-fetch');
+  SharedNutrition = require('../../shared/nutrition.js');
 }
 
 exports.handler = async (event, context) => {
@@ -70,6 +73,11 @@ exports.handler = async (event, context) => {
 
     console.log('收到AI调用请求:', { text: text?.substring(0, 100), hasImage: !!image, mode });
 
+    // 额外AI提示（来自共享库）
+    const extraHints = (SharedNutrition && SharedNutrition.AI_HINTS && SharedNutrition.AI_HINTS.proteinPowderRule)
+      ? ('\n\n补充规则：' + SharedNutrition.AI_HINTS.proteinPowderRule)
+      : '';
+
     // 系统提示词（根据模式变化）
     const SYS_HINT = (mode === 'goal')
       ? `你是一名营养目标规划助手。
@@ -84,7 +92,7 @@ exports.handler = async (event, context) => {
   },
   "notes": "可选补充说明"
 }
-要求：数值为正数；若未给出carbs，请按 carbs = round((cal - pro*4 - fat*9)/4)。`
+要求：数值为正数；若未给出carbs，请按 carbs = round((cal - pro*4 - fat*9)/4)。${extraHints}`
       : `你是一名营养分析助手。
 
 任务A：识别图片或文字中的所有食物（可多种），估算每种营养（kcal/蛋白/脂肪/碳水）。若份量不确定做常识假设并在notes说明。
@@ -101,7 +109,7 @@ exports.handler = async (event, context) => {
   "items": [ {"name":"...","protein":0,"fat":0,"carbs":0,"kcal":0} ],
   "notes": "可选修正说明"
 }
-要求：中文菜名；蛋白/脂肪/碳水可一位小数；kcal为整数。`;
+要求：中文菜名；蛋白/脂肪/碳水可一位小数；kcal为整数。${extraHints}`;
 
     // 构建文本内容
     let textPrompt = '';
@@ -274,27 +282,19 @@ exports.handler = async (event, context) => {
         };
       }) : [];
 
-      const calcTotals = (items) => {
-        const t = items.reduce((a, i) => {
-          const p = +i.protein || 0;
-          const c = +i.carbs || 0;
-          const f = +i.fat || 0;
-          const k = Number.isFinite(+i.kcal) ? Math.max(0, Math.round(+i.kcal)) : Math.round(p*4 + c*4 + f*9);
-          a.kcal += k;
-          a.protein += p;
-          a.carbs += c;
-          a.fat += f;
-          return a;
-        }, { kcal: 0, protein: 0, carbs: 0, fat: 0 });
-        t.protein = +t.protein.toFixed(1);
-        t.carbs = +t.carbs.toFixed(1);
-        t.fat = +t.fat.toFixed(1);
-        return t;
-      };
-
       const finalResult = { 
         items, 
-        totals: calcTotals(items), 
+        totals: (SharedNutrition && SharedNutrition.calcTotals) ? SharedNutrition.calcTotals(items) : (function(items){
+          const t = items.reduce((a, i) => {
+            const p = +i.protein || 0;
+            const c = +i.carbs || 0;
+            const f = +i.fat || 0;
+            const k = Number.isFinite(+i.kcal) ? Math.max(0, Math.round(+i.kcal)) : Math.round(p*4 + c*4 + f*9);
+            a.kcal += k; a.protein += p; a.carbs += c; a.fat += f; return a;
+          }, { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+          t.protein = +t.protein.toFixed(1); t.carbs = +t.carbs.toFixed(1); t.fat = +t.fat.toFixed(1);
+          return t;
+        })(items), 
         notes: typeof result.notes === 'string' ? result.notes : '' 
       };
 
