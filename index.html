@@ -1100,48 +1100,13 @@ function saveTodayOverride(){
 
      // 主题模式：auto | light | dark
 // - auto：按时间切（19:00–06:00 = dark）
-// - light/dark：手动固定（支持“临时到期自动恢复”）
-function computeShouldDark(d){
-  const h = (d || new Date()).getHours();
-  return (h >= 19 || h < 6);
-}
-
-function getNextThresholdTime(from){
-  const now = from ? new Date(from) : new Date();
-  const t = new Date(now);
-  t.setMinutes(0,0,0);
-  const h = now.getHours();
-  if (h < 6) {
-    t.setHours(6);
-  } else if (h < 19) {
-    t.setHours(19);
-  } else {
-    t.setDate(t.getDate()+1);
-    t.setHours(6);
-  }
-  return t;
-}
-
-function formatHHmm(d){
-  const hh = String(d.getHours()).padStart(2,'0');
-  const mm = String(d.getMinutes()).padStart(2,'0');
-  return hh + ':' + mm;
-}
-
-function getManualUntil(){
-  const v = +localStorage.getItem('manualUntil');
-  return Number.isFinite(v) && v > 0 ? v : 0;
-}
-function setManualUntil(ts){
-  if (ts && Number.isFinite(ts)) localStorage.setItem('manualUntil', String(ts));
-  else localStorage.removeItem('manualUntil');
-}
-
+// - light/dark：手动固定
 function applyThemeByMode(mode){
   if(mode==='auto'){
-    const shouldDark = computeShouldDark();
+    const h = new Date().getHours();
+    const shouldDark = (h >= 19 || h < 6);
     document.documentElement.classList.toggle('dark', shouldDark);
-    localStorage.setItem('theme', shouldDark ? 'dark' : 'light');
+    localStorage.setItem('theme', shouldDark ? 'dark' : 'light'); // 方便下游配色读取
   }else{
     document.documentElement.classList.toggle('dark', mode==='dark');
     localStorage.setItem('theme', mode);
@@ -1162,53 +1127,12 @@ function getThemeMode(){
 function setThemeMode(mode){
   localStorage.setItem('themeMode', mode);
   applyThemeByMode(mode);
-  scheduleThemeTimer();
 }
 
-function scheduleThemeTimer(){
-  clearTimeout(window.__themeTimer);
-  window.__themeTimer = null;
-  const mode = getThemeMode();
-  let targetTime = null;
-
-  if (mode === 'auto') {
-    targetTime = getNextThresholdTime();
-  } else {
-    const mu = getManualUntil();
-    if (mu) {
-      const now = Date.now();
-      if (now >= mu) {
-        // 手动已过期 → 立即恢复自动
-        setManualUntil(0);
-        setThemeMode('auto');
-        showToast('已恢复自动模式');
-        return;
-      }
-      targetTime = new Date(mu);
-    }
-  }
-
-  if (!targetTime) return;
-  const delay = Math.max(0, targetTime.getTime() - Date.now());
-  window.__themeTimer = setTimeout(()=>{
-    const cur = getThemeMode();
-    if (cur === 'auto') {
-      // 到阈值时自动按时间切换
-      applyThemeByMode('auto');
-      scheduleThemeTimer();
-    } else {
-      // 手动覆盖到期 → 恢复自动
-      setManualUntil(0);
-      setThemeMode('auto');
-      showToast('已恢复自动模式');
-    }
-  }, delay);
-}
-
-// 绑定按钮：点击 = 在 light/dark 之间切换并进入“手动至下个阈值”；长按 1.5s 恢复 auto
+// 绑定按钮：点击 = 在 light/dark 之间切换并进入手动模式；长按 1.5s 恢复 auto
 const themeToggle = document.getElementById('theme-toggle');
 let pressTimer = null;
-themeToggle.addEventListener('mousedown', ()=>{ pressTimer = setTimeout(()=> { setManualUntil(0); setThemeMode('auto'); showToast('已恢复自动模式'); }, 1500); });
+themeToggle.addEventListener('mousedown', ()=>{ pressTimer = setTimeout(()=> setThemeMode('auto'), 1500); });
 themeToggle.addEventListener('mouseup', ()=> clearTimeout(pressTimer));
 themeToggle.addEventListener('mouseleave', ()=> clearTimeout(pressTimer));
 themeToggle.addEventListener('click', () => {
@@ -1216,10 +1140,7 @@ themeToggle.addEventListener('click', () => {
   const curMode = getThemeMode();
   const isDark = document.documentElement.classList.contains('dark');
   const nextMode = (curMode==='auto' ? (isDark?'light':'dark') : (localStorage.getItem('theme')==='dark' ? 'light':'dark'));
-  const until = getNextThresholdTime();
-  setManualUntil(until.getTime());
   setThemeMode(nextMode);
-  showToast(`已切换为${nextMode==='dark'?'深色':'浅色'}（手动至 ${formatHHmm(until)}）`);
   const st = window.__chartState || {};
   // 仅当历史页图表在 DOM 中时才刷新图表配色
   if (document.getElementById('metrics-chart')) {
@@ -1227,45 +1148,12 @@ themeToggle.addEventListener('click', () => {
   }
 });
 
-// 启动时应用 + 定时到阈值
-// 若手动模式且已过期，立即恢复自动
-(function initTheme(){
-  const mode = getThemeMode();
-  if (mode === 'auto') {
-    applyThemeByMode('auto');
-  } else {
-    const mu = getManualUntil();
-    if (mu && Date.now() >= mu) {
-      setManualUntil(0);
-      setThemeMode('auto');
-      showToast('已恢复自动模式');
-    } else {
-      applyThemeByMode(mode);
-    }
-  }
-  scheduleThemeTimer();
-})();
-
-// 回到前台时校正一次（应对睡眠/跨天）
-document.addEventListener('visibilitychange', ()=>{
-  if (document.visibilityState === 'visible') {
-    const mode = getThemeMode();
-    if (mode === 'auto') {
-      applyThemeByMode('auto');
-      scheduleThemeTimer();
-    } else {
-      const mu = getManualUntil();
-      if (mu && Date.now() >= mu) {
-        setManualUntil(0);
-        setThemeMode('auto');
-        showToast('已恢复自动模式');
-      } else {
-        applyThemeByMode(mode);
-        scheduleThemeTimer();
-      }
-    }
-  }
-});
+// 启动时应用
+applyThemeByMode(getThemeMode());
+// 若在 auto 模式下，每小时校正一次
+if(getThemeMode()==='auto'){
+  setInterval(()=> applyThemeByMode('auto'), 60*60*1000);
+}
 
 // 初次渲染也同步 <meta name="theme-color">
 updateThemeColorMeta();
@@ -1750,7 +1638,7 @@ function renderAiResult(json){
           <div class="flex items-center gap-2 mt-1">
             <button class="w-6 h-6 rounded bg-neutral-200 dark:bg-neutral-600 text-xs" 
                     onclick="adjustQuantity(${index}, 0.5)">-</button>
-            <span class="quantity-display text-sm font-medium cursor-text" data-index="${index}" onclick="startEditQuantity(${index})">1.0倍</span>
+            <span class="quantity-display text-sm font-medium" data-index="${index}">1.0倍</span>
             <button class="w-6 h-6 rounded bg-neutral-200 dark:bg-neutral-600 text-xs" 
                     onclick="adjustQuantity(${index}, 2)">+</button>
           </div>
@@ -1857,86 +1745,6 @@ function updateItemDisplay(index, item) {
   if (proteinEl) proteinEl.textContent = item.protein.toFixed(1);
   if (carbsEl) carbsEl.textContent = item.carbs.toFixed(1);
   if (fatEl) fatEl.textContent = item.fat.toFixed(1);
-}
-
-// —— 手动编辑倍数 ——
-function startEditQuantity(index){
-  if (!window.currentEditableItems || index >= window.currentEditableItems.length) return;
-  const item = window.currentEditableItems[index];
-  if (!item.originalValues) {
-    item.originalValues = {
-      protein: item.protein,
-      carbs: item.carbs,
-      fat: item.fat,
-      kcal: item.kcal
-    };
-    item.currentMultiplier = 1.0;
-  }
-  const span = document.querySelector(`.quantity-display[data-index="${index}"]`);
-  if (!span) return;
-
-  // 创建输入框
-  const currentVal = item.currentMultiplier || 1.0;
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.step = '0.1';
-  input.min = '0.1';
-  input.max = '5.0';
-  input.value = currentVal.toFixed(1);
-  input.className = 'w-16 text-center text-sm font-medium bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded px-2 py-0.5 outline-none';
-
-  // 替换span
-  span.replaceWith(input);
-  input.focus();
-  input.select();
-
-  const apply = ()=>{
-    let v = parseFloat(input.value);
-    if (!isFinite(v)) v = currentVal;
-    v = Math.max(0.1, Math.min(5.0, Math.round(v*10)/10));
-    item.currentMultiplier = v;
-    const original = item.originalValues;
-    item.protein = +(original.protein * v).toFixed(1);
-    item.carbs = +(original.carbs * v).toFixed(1);
-    item.fat = +(original.fat * v).toFixed(1);
-    item.kcal = Math.round(original.kcal * v);
-
-    // 还原显示节点
-    const newSpan = document.createElement('span');
-    newSpan.className = 'quantity-display text-sm font-medium cursor-text';
-    newSpan.setAttribute('data-index', String(index));
-    newSpan.textContent = `${v.toFixed(1)}倍`;
-    newSpan.onclick = ()=> startEditQuantity(index);
-    input.replaceWith(newSpan);
-
-    updateItemDisplay(index, item);
-    updateTotalDisplay();
-
-    if (window.__aiSession) {
-      window.__aiSession.lastJSON = {
-        items: window.currentEditableItems,
-        totals: calcTotals(window.currentEditableItems),
-        notes: ''
-      };
-    }
-  };
-
-  const cancel = ()=>{
-    // 恢复span
-    const newSpan = document.createElement('span');
-    const v = item.currentMultiplier || 1.0;
-    newSpan.className = 'quantity-display text-sm font-medium cursor-text';
-    newSpan.setAttribute('data-index', String(index));
-    newSpan.textContent = `${v.toFixed(1)}倍`;
-    newSpan.onclick = ()=> startEditQuantity(index);
-    input.replaceWith(newSpan);
-  };
-
-  input.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter') { e.preventDefault(); apply(); }
-    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-  });
-  input.addEventListener('blur', ()=> apply());
 }
 
 // —— 更新总计显示 ——
